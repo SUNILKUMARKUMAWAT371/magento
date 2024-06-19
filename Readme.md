@@ -27,7 +27,7 @@ This package is designed to set up and run a Magento application efficiently. It
 
 **Steps to execute the commands** 
 
-    <sub>bash ./bash.sh</sub>
+    bash ./bash.sh
 
 After excute the script they gave admin url on bottom which is use for admin which is use after http://localhost/
 
