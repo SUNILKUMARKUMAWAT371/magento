@@ -12,7 +12,7 @@ This package is designed to set up and run a Magento application efficiently. It
 - Varnish (v7.4)
 
 
-* You should changes in these directory or files i.e magento, docker-compose.yaml, bash.sh
+* We should changes in these directory or files i.e magento, docker-compose.yaml, bash.sh
 
 * Here is a folder or directory named 'magento' where we need to place the application code.
 
