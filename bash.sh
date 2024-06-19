@@ -1,97 +1,139 @@
-#!/bin/bash
-docker compose -f ./docker-compose.yaml up -d
-echo "container deployment is successfully"
-sleep 10
-docker ps
-
-## Installing or Update the packages using Composer install
-docker exec -it -w /var/www/magento magento composer install
-
-
-## Magento installing with the specified configuration options like DB, ElasticSearch.
-
-if [ ! -f ./magento/app/etc/env.php ]; then
-    echo "Magento is not installed. Proceeding with fresh installation..."
-    docker exec -it -w /var/www/magento magento bin/magento setup:install \
-                                                --base-url=http://localhost \
-                                                --db-host=mysql \
-                                                --db-name=magento \
-                                                --db-user=magento \
-                                                --db-password="magento@123" \
-                                                --admin-firstname=Admin \
-                                                --admin-lastname=User \
-                                                --admin-email=admin@magento-dev.com \
-                                                --admin-user=admin \
-                                                --admin-password=magento@123 \
-                                                --language=en_US \
-                                                --currency=USD \
-                                                --timezone=America/Chicago \
-                                                --use-rewrites=1 \
-                                                --search-engine=elasticsearch7 \
-                                                --elasticsearch-host=elasticsearch \
-                                                --elasticsearch-port=9200
-    echo "Magento installation completed."
-else
-    echo "Magento is already installed. Skipping installation."
-fi
+# copy files if they don't exist
+copy_files() {
+    if [ ! -f ./magento/magento2.conf ] && [ ! -f ./magento/script.sh ]; then
+        cp -r magento2.conf magento/
+        cp -r script.sh magento/
+        echo "Magento virtual hosting and script.sh file copied successfully."
+    else
+        echo "Magento virtual hosting and script.sh already exist."
+    fi  
+}
 
 
-## Configure Redis with Magento application for full page cache
+# deploy Docker containers
+deploy_containers() {
+    docker compose -f ./docker-compose.yaml up -d
+    if [ $? -eq 0 ]; then  # $? retrieves the exit status of the last executed command.
+        echo "Container deployment was successful."
+        sleep 10
+        docker ps
+    else
+        echo "Failed to deploy containers."
+        exit 1
+    fi
+}
 
-if grep -q "'session'" ./magento/app/etc/env.php && grep -q "'redis'" ./magento/app/etc/env.php; 
-then
-        echo "Redis is already installed. Skipping Configured"
-else 
-        ## Configure Redis with Magento application for full page cache
-        #docker exec -it -w /var/www/magento magento bin/magento setup:config:set --page-cache=redis --page-cache-redis-server=redis --page-cache-redis-db =0 --no-interaction
-        #docker exec -it -w /var/www/magento magento bin/magento setup:config:set --session-save=redis --session-save-redis-host=redis --session-save-redis-db=3 --no-interaction
+# install or update packages using Composer
+install_composer_packages() {
+    docker exec -it -w /var/www/magento magento composer install
+}
+
+# install Magento
+install_magento() {
+    if [ ! -f ./magento/app/etc/env.php ]; then
+        echo "Magento is not installed. Proceeding with fresh installation..."
+        docker exec -it -w /var/www/magento magento bin/magento setup:install \
+            --base-url=http://localhost \
+            --db-host=mysql \
+            --db-name=magento \
+            --db-user=magento \
+            --db-password="magento@123" \
+            --admin-firstname=Admin \
+            --admin-lastname=User \
+            --admin-email=admin@magento-dev.com \
+            --admin-user=admin \
+            --admin-password=magento@123 \
+            --language=en_US \
+            --currency=USD \
+            --timezone=America/Chicago \
+            --use-rewrites=1 \
+            --search-engine=elasticsearch7 \
+            --elasticsearch-host=elasticsearch \
+            --elasticsearch-port=9200
+        echo "Magento installation completed."
+        docker exec -it -w /var/www/magento magento bin/magento setup:di:compile # DI configurations are optimized and the necessary code is pre-generated for better performance and reliability
+        
+    else
+        echo "Magento is already installed. Skipping installation."
+    fi
+}
+
+# configure Redis
+configure_redis() {
+    if grep -q "'session'" ./magento/app/etc/env.php && grep -q "'redis'" ./magento/app/etc/env.php; then
+        echo "Redis is already configured. Skipping..."
+    else 
         docker exec -it -w /var/www/magento magento bin/magento setup:config:set \
-                                                    --cache-backend=redis \
-                                                    --cache-backend-redis-server=redis \
-                                                    --cache-backend-redis-port=6379 \
-                                                    --cache-backend-redis-db=0 \
-                                                    --cache-backend-redis-password= \
-                                                    --session-save=redis \
-                                                    --session-save-redis-host=redis \
-                                                    --session-save-redis-port=6379 \
-                                                    --session-save-redis-log-level=4 \
-                                                    --session-save-redis-db=1 \
-                                                    --session-save-redis-password= \
-                                                    --page-cache=redis \
-                                                    --page-cache-redis-server=redis \
-                                                    --page-cache-redis-port=6379 \
-                                                    --page-cache-redis-db=2 \
-                                                    --page-cache-redis-password= \
-                                                    --no-interaction
-
-        echo "Configure Redis with Magento application for full page cache successfully......"
-
-fi
-
-
-## change Ownership to magento code repository
-docker exec -it magento chown -R www-data:www-data /var/www/magento
+            --cache-backend=redis \
+            --cache-backend-redis-server=redis \
+            --cache-backend-redis-port=6379 \
+            --cache-backend-redis-db=0 \
+            --cache-backend-redis-password= \
+            --session-save=redis \
+            --session-save-redis-host=redis \
+            --session-save-redis-port=6379 \
+            --session-save-redis-log-level=4 \
+            --session-save-redis-db=1 \
+            --session-save-redis-password= \
+            --page-cache=redis \
+            --page-cache-redis-server=redis \
+            --page-cache-redis-port=6379 \
+            --page-cache-redis-db=2 \
+            --page-cache-redis-password= \
+            --no-interaction
+        echo "Redis configured successfully."
+    fi
+}
 
 
-## varnish full page Configuration with magento
+change_ownership() {
+    current_owner=$(docker exec -it magento stat -c '%U:%G' /var/www/magento | tr -d '[:space:]')
 
-varnish_status=$(docker exec -it -w /var/www/magento magento bin/magento config:show system/full_page_cache/caching_application | tr -d '\r' )
+    if [ "$current_owner" != "www-data:www-data" ]; then
+        echo "Changing ownership to www-data:www-data..."
+        docker exec -it magento chown -R www-data:www-data /var/www/magento
+    else
+        echo "Ownership is already www-data:www-data. No changes made."
+    fi
+}
 
-if [ "$varnish_status" == "2" ];
-then 
-        echo "Varnish is already installed. Skipping Configured......"
-else
-
-        ## varnish full page Configuration with magento
+# Function to configure Varnish
+configure_varnish() {
+    local varnish_status
+    varnish_status=$(docker exec -it -w /var/www/magento magento bin/magento config:show system/full_page_cache/caching_application | tr -d '\r')
+    if [ "$varnish_status" == "2" ]; then
+        echo "Varnish is already configured. Skipping..."
+    else
         docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/caching_application 2
         docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/backend_host magento
         docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/backend_port 80
         docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/access_list 0.0.0.0
         docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/grace_period 300
-        echo "Varnish Configured Successfully......"
-fi
+        echo "Varnish configured successfully."
+    fi
+}
 
+# Function to get Magento Admin URI
+get_admin_uri() {
+    docker exec -it -w /var/www/magento magento bin/magento info:adminuri
+}
 
+# Main script execution
+copy_files
+deploy_containers
+install_composer_packages
 
-## Admin URI
-docker exec -it -w /var/www/magento magento bin/magento info:adminuri
+read -p "Do you want to install Magento freshly with give credentials? (yes/no): " install_choice
+case "$install_choice" in 
+    y|Y|yes|Yes|YES)
+        install_magento
+        ;;
+    *)
+        echo "Skipping Magento installation."
+        ;;
+esac
+
+configure_redis
+change_ownership
+configure_varnish
+get_admin_uri
