@@ -15,7 +15,7 @@ deploy_containers() {
     docker compose -f ./docker-compose.yaml up -d
     if [ $? -eq 0 ]; then  # $? retrieves the exit status of the last executed command.
         echo "Container deployment was successful."
-        sleep 10
+        #sleep 10
         docker ps
     else
         echo "Failed to deploy containers."
@@ -25,14 +25,14 @@ deploy_containers() {
 
 # install or update packages using Composer
 install_composer_packages() {
-    docker exec -it -w /var/www/magento magento composer install
+    docker exec -it -u www-data:www-data -w /var/www/magento magento composer install
 }
 
 # install Magento
 install_magento() {
     if [ ! -f ./magento/app/etc/env.php ]; then
         echo "Magento is not installed. Proceeding with fresh installation..."
-        docker exec -it -w /var/www/magento magento bin/magento setup:install \
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento setup:install \
             --base-url=http://localhost \
             --db-host=mysql \
             --db-name=magento \
@@ -51,7 +51,7 @@ install_magento() {
             --elasticsearch-host=elasticsearch \
             --elasticsearch-port=9200
         echo "Magento installation completed."
-        docker exec -it -w /var/www/magento magento bin/magento setup:di:compile # DI configurations are optimized and the necessary code is pre-generated for better performance and reliability
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento setup:di:compile # DI configurations are optimized and the necessary code is pre-generated for better performance and reliability
         
     else
         echo "Magento is already installed. Skipping installation."
@@ -63,7 +63,7 @@ configure_redis() {
     if grep -q "'session'" ./magento/app/etc/env.php && grep -q "'redis'" ./magento/app/etc/env.php; then
         echo "Redis is already configured. Skipping..."
     else 
-        docker exec -it -w /var/www/magento magento bin/magento setup:config:set \
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento setup:config:set \
             --cache-backend=redis \
             --cache-backend-redis-server=redis \
             --cache-backend-redis-port=6379 \
@@ -100,40 +100,104 @@ change_ownership() {
 # Function to configure Varnish
 configure_varnish() {
     local varnish_status
-    varnish_status=$(docker exec -it -w /var/www/magento magento bin/magento config:show system/full_page_cache/caching_application | tr -d '\r')
+    varnish_status=$(docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento config:show system/full_page_cache/caching_application | tr -d '\r')
     if [ "$varnish_status" == "2" ]; then
         echo "Varnish is already configured. Skipping..."
     else
-        docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/caching_application 2
-        docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/backend_host magento
-        docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/backend_port 80
-        docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/access_list 0.0.0.0
-        docker exec -it -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/grace_period 300
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento config:set system/full_page_cache/caching_application 2
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/backend_host magento
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/backend_port 80
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/access_list 0.0.0.0
+        docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento config:set system/full_page_cache/varnish/grace_period 300
         echo "Varnish configured successfully."
     fi
 }
 
 # Function to get Magento Admin URI
 get_admin_uri() {
-    docker exec -it -w /var/www/magento magento bin/magento info:adminuri
+    docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento info:adminuri
 }
 
-# Main script execution
+# Main script execution with conditional checks
 copy_files
-deploy_containers
-install_composer_packages
-
-read -p "Do you want to install Magento freshly with give credentials? (yes/no): " install_choice
-case "$install_choice" in 
-    y|Y|yes|Yes|YES)
-        install_magento
-        ;;
-    *)
-        echo "Skipping Magento installation."
-        ;;
-esac
-
-configure_redis
-change_ownership
-configure_varnish
-get_admin_uri
+if [ $? -eq 0 ]; then
+    deploy_containers
+    if [ $? -eq 0 ]; then
+        install_composer_packages
+        if [ $? -eq 0 ]; then
+            read -p "Do you want to install Magento freshly with mention credentials in docker-compose.yaml? (yes/no): " install_choice
+            case "$install_choice" in 
+                y|Y|yes|Yes|YES)
+                    install_magento
+                    if [ $? -eq 0 ]; then
+                        configure_redis
+                        if [ $? -eq 0 ]; then
+                            change_ownership
+                            if [ $? -eq 0 ]; then
+                                configure_varnish
+                                if [ $? -eq 0 ]; then
+                                    get_admin_uri
+                                    if [ $? -eq 0 ]; then
+                                        echo "All steps executed successfully."
+                                    else
+                                        echo "Failed to retrieve Admin URI."
+                                        exit 1
+                                    fi
+                                else
+                                    echo "Failed to configure Varnish."
+                                    exit 1
+                                fi
+                            else
+                                echo "Failed to change ownership."
+                                exit 1
+                            fi
+                        else
+                            echo "Failed to configure Redis."
+                            exit 1
+                        fi
+                    else
+                        echo "Failed to install Magento."
+                        exit 1
+                    fi
+                    ;;
+                *)
+                    echo "Skipping Magento installation."
+                    configure_redis
+                    if [ $? -eq 0 ]; then
+                        change_ownership
+                        if [ $? -eq 0 ]; then
+                            configure_varnish
+                            if [ $? -eq 0 ]; then
+                                get_admin_uri
+                                if [ $? -eq 0 ]; then
+                                    echo "All steps executed successfully."
+                                else
+                                    echo "Failed to retrieve Admin URI."
+                                    exit 1
+                                fi
+                            else
+                                echo "Failed to configure Varnish."
+                                exit 1
+                            fi
+                        else
+                            echo "Failed to change ownership."
+                            exit 1
+                        fi
+                    else
+                        echo "Failed to configure Redis."
+                        exit 1
+                    fi
+                    ;;
+            esac
+        else
+            echo "Failed to install Composer packages."
+            exit 1
+        fi
+    else
+        echo "Failed to deploy containers."
+        exit 1
+    fi
+else
+    echo "Failed to copy files."
+    exit 1
+fi

@@ -11,9 +11,12 @@ services:
       - ./magento:/var/www/magento
     entrypoint: ["sh", "-c", "bash './var/www/magento/script.sh' && nginx -g 'daemon off;'"]
     depends_on:
-      - mysql
-      - elasticsearch
-      - redis
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - magento_network
 
@@ -54,6 +57,10 @@ services:
       - MYSQL_DATABASE=magento
       - MYSQL_USER=magento
       - MYSQL_PASSWORD=magento@123
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
     volumes:
       - ./mysql:/var/lib/mysql
     networks:
