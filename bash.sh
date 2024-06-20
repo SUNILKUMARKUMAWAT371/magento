@@ -1,3 +1,20 @@
+#!/bin/bash
+
+# we create directory volume for redis mysql elasticsearch
+directories=("mysql" "elasticsearch" "redis-data")
+
+# Loop through the directory names
+for dir in "${directories[@]}"; do
+  # Check if the directory exists
+  if [ -d "$dir" ]; then
+    echo "Directory $dir already exists, skipping..."
+  else
+    # Create the directory if it does not exist
+    mkdir "$dir"
+    echo "Directory $dir created."
+  fi
+done
+
 # copy files if they don't exist
 copy_files() {
     if [ ! -f ./magento/magento2.conf ] && [ ! -f ./magento/script.sh ]; then
