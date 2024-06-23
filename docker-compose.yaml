@@ -1,0 +1,86 @@
+version: '3'
+
+services:
+  magento:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    image: magento-template
+    container_name: magento
+    volumes:
+      - ${code_path}:/var/www/magento
+    entrypoint: ["sh", "-c", "bash './var/www/magento/script.sh' && nginx -g 'daemon off;'"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - magento_network
+
+  redis:
+    image: redis:7.2
+    container_name: redis
+    restart: always
+    volumes:
+      - ./redis-data:/data
+    networks:
+      - magento_network
+
+
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms2048m -Xmx2048m"     
+    volumes:
+      - ./elasticsearch:/usr/share/elasticsearch/data
+    networks:
+      - magento_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    ports:
+      - 3306:3306
+    volumes:
+      - ./mysql:/var/lib/mysql
+    networks:
+      - magento_network
+
+  varnish:
+    image: varnish:7.4
+    container_name: varnish
+    ports:
+      - "80:80"
+      - "8443:8443"
+    volumes:
+      - ./varnish/varnish.vcl:/etc/varnish/default.vcl
+    networks:
+      - magento_network
+    depends_on:
+      - magento
+
+networks:
+  magento_network:
+    driver: bridge 
