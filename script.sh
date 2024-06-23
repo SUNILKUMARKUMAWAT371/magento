@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#wget -qO- "https://github.com/magento/magento2/archive/refs/tags/2.4.7.tar.gz" | tar xz --strip-components=1 -C /var/www/magento \
+wget -qO- "https://github.com/magento/magento2/archive/refs/tags/2.4.7.tar.gz" | tar xz --strip-components=1 -C /var/www/magento \
 
 #wget -qO- \"https://github.com/magento/magento2/archive/refs/tags/${magento_version}.tar.gz\" | tar xz --strip-components=1 -C /var/www/magento
 

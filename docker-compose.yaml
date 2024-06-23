@@ -8,7 +8,7 @@ services:
     image: magento-template
     container_name: magento
     volumes:
-      - ${code_path}:/var/www/magento
+      - ./magento:/var/www/magento
     entrypoint: ["sh", "-c", "bash './var/www/magento/script.sh' && nginx -g 'daemon off;'"]
     depends_on:
       mysql:
