@@ -4,35 +4,41 @@ This package is designed to set up and run a Magento 2.4.7 application efficient
 
 
 ## Prerequisites
-- **Ports**: Ensure ports 80 and 8080 are available.
-- **Docker** and **Docker-Compose**
-- **PHP** (v8.3)
-- **Composer**
-- **MySQL** (v8.0)
-- **Redis** (v7.2)
-- **Web Server** (Nginx)
-- **Elasticsearch** (v8.11.0)
-- **Varnish** (v7.4)
-- **phpMyAdmin**
+- Ports: Ensure ports 80 and 8080 are available.
+- Docker and Docker-Compose
+- PHP (v8.3)
+- Composer
+- MySQL (v8.0)
+- Redis (v7.2)
+- Web Server (Nginx)
+- Elasticsearch (v8.11.0)
+- Varnish (v7.4)
+- phpMyAdmin
 
 
 
-- **Package Overview**
+**Package Overview**
+
 This package will run as a containerized service, so make sure Docker and Docker Compose are installed on your system.
 
-- **Docker Configuration**
+**Docker Configuration**
+
 We have created a stateless Dockerfile that includes all necessary dependencies such as PHP, PHP-FPM, Composer, Nginx, etc. This Dockerfile will be included in a docker-compose.yml file to build a Docker image with all required dependencies for our application.
 
-- **Data Storage**
+**Data Storage**
+
 We use the current path where the script is run for storing the data of the Magento application code, MySQL, Elasticsearch, etc.
 
-- **Services Deployment**
+**Services Deployment**
+
 We will deploy the MySQL database, Redis, Elasticsearch, Varnish, and phpMyAdmin using the docker-compose.yml file.
 
-- **Configuration Commands**
+**Configuration Commands**
+
 All configuration commands for the application are present in the main.sh file. You can provide the credentials for respective services like DB details and Magento admin credentials interactively when running the script.
 
-- **Virtual Hosting and Configuration Files**
+**Virtual Hosting and Configuration Files**
+
 When the script or package runs, it copies all necessary virtual hosting or configuration files for Nginx and Varnish at runtime.
 
 
