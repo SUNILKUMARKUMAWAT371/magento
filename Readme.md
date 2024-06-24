@@ -4,16 +4,16 @@ This package is designed to set up and run a Magento 2.4.7 application efficient
 
 
 ## Prerequisites
-**Ports**: Ensure ports 80 and 8080 are available.
-**Docker** and **Docker-Compose**
-**PHP** (v8.3)
-**Composer**
-**MySQL** (v8.0)
-**Redis** (v7.2)
-**Web Server** (Nginx)
-**Elasticsearch** (v8.11.0)
-**Varnish** (v7.4)
-**phpMyAdmin**
+- **Ports**: Ensure ports 80 and 8080 are available.
+- **Docker** and **Docker-Compose**
+- **PHP** (v8.3)
+- **Composer**
+- **MySQL** (v8.0)
+- **Redis** (v7.2)
+- **Web Server** (Nginx)
+- **Elasticsearch** (v8.11.0)
+- **Varnish** (v7.4)
+- **phpMyAdmin**
 
 
 **Package Overview**
