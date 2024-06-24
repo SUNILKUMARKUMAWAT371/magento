@@ -1,3 +1,41 @@
+# Function to check if a port is open
+check_port() {
+    local port=$1
+    if nc -zv 127.0.0.1 $port 2>&1 | grep -q 'succeeded'; then
+        echo "Port $port is open or already in use. "
+        return 1
+    else
+        echo "Port $port is available."
+        return 0
+    fi
+}
+
+# Check if Docker is installed
+check_docker_installed() {
+    if command -v docker &> /dev/null
+    then
+        echo "Docker is installed."
+        return 0
+    else
+        echo "Docker is not installed."
+        return 1
+    fi
+}
+
+# Check if Docker-Compose is installed
+check_docker_compose_installed() {
+    if command -v docker-compose &> /dev/null
+    then
+        echo "Docker Compose is installed."
+        return 0
+    else
+        echo "Docker Compose is not installed."
+        return 1
+    fi
+}
+
+
+
 # we create directory volume for redis mysql elasticsearch
 data_persist_volume () {
     directories=("mysql" "elasticsearch" "redis-data" "varnish" "magento") 
@@ -206,8 +244,69 @@ get_admin_uri() {
 }
 
 
+#############################################  Port 80 and 8080 available
+
+read -p "Ensure the port 80 and 8080 must be available to run the complete package of application (y/n): " verify_port
+
+if [ "$verify_port" == "y" ]; then
+
+    # Check ports 80 and 8080
+    check_port 80
+    port_80_status=$?
+
+    check_port 8080
+    port_8080_status=$?
+
+    if [ $port_80_status -eq 0 ] && [ $port_8080_status -eq 0 ]; then
+        echo "Both ports are available. Proceeding to the next step."
+    else
+        echo "Both ports 80 and 8080 must be available to run this application."
+    fi
+
+else 
+    echo "Port 80 and 8080 must be available to run this application."
+fi
 
 
+####################################################  Docker and docker compose installed
+# Check if Docker is installed
+if check_docker_installed
+then
+    check_docker_installed_status=$?
+
+    if check_docker_compose_installed
+    then
+        check_docker_compose_installed_status=$?
+        # Check if the user is in the Docker group
+        if groups $USER | grep &>/dev/null "\bdocker\b"
+        then
+            echo "User is already in the Docker group."
+        else
+            echo "Please add User in the Docker group....."
+        fi
+        check_user_dockergroup_status=$?
+
+    else
+        echo "Please first install Docker Compose"
+    fi
+
+    if [ $check_docker_installed_status -eq 0 ] && [ $check_docker_compose_installed_status -eq 0 ] && [ $check_user_dockergroup_status -eq 0 ]  ; then
+        echo "docker, docker-compose and user configured with docker are available. Proceeding to the next step."
+    else
+        echo "Both docker and docker-compose must be available to run this application."
+    fi
+
+
+else
+    echo "please first install Docker"
+fi
+
+# Further steps can be added here
+echo "Proceeding with the next steps..."
+
+
+
+##############################################################  Magento install freshly
 
 echo "Do you want to proceed with a fresh Magento installation or use an existing setup?"
 echo "1) Fresh Magento installation"
