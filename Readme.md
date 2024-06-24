@@ -15,6 +15,7 @@ This package is designed to set up and run a Magento 2.4.7 application efficient
 - Varnish (v7.4)
 - phpMyAdmin
 
+## 
 
 
 - **Package Overview**
