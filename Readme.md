@@ -68,4 +68,5 @@ phpMyAdmin URL: http://localhost:8080
 
 
 - **Example**: admin-id 
+
 Admin URI: /admin_v91x5o1
