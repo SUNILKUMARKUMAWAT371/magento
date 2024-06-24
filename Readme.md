@@ -44,16 +44,20 @@ When the script or package runs, it copies all necessary virtual hosting or conf
 
 ## Services
 
-- **Varnish**
+**Varnish**
+
 We use Varnish caching server to boost website performance by caching HTTP responses, operating on port 80. Ensure that port 80 is available when you execute the code.
 
-- **Redis**
+**Redis**
+
 Redis is used for caching to improve page load times and for session storage to manage user sessions efficiently. This enhances overall site performance and scalability.
 
-- **Elasticsearch**
+**Elasticsearch**
+
 Elasticsearch is used to enhance search capabilities, providing faster and more accurate search results, and improving overall user experience by handling large catalogs efficiently. It supports advanced features like faceted search, autocomplete suggestions, and synonyms, making product discovery easier for customers.
 
-- **phpMyAdmin**
+**phpMyAdmin**
+
 We deploy phpMyAdmin to interact with the MySQL database. This service will be accessible on port 8080.
 
 
@@ -67,12 +71,13 @@ Run the following command to execute the script:
 After executing the script, it will ask various questions in interactive mode such as port availability, Docker installation, Magento installation, credentials, etc. Finally, it provides the admin URL at the bottom which can be accessed at http://localhost/admin-id. It also provides the URL for phpMyAdmin at http://localhost:8080/.
 
 
-- **Application URLs**
+**Application URLs**
+
 Magento URL: http://localhost/
 Magento Admin URL: http://localhost/admin-id
 phpMyAdmin URL: http://localhost:8080
 
 
-- **Example**: admin-id 
+**Example**: admin-id 
 
 Admin URI: /admin_v91x5o1
