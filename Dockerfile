@@ -11,6 +11,7 @@ RUN apt-get update && \
     apt-get install -y \
     nginx \
     curl \
+    wget \
     net-tools \
     git \
     unzip \
@@ -39,4 +40,3 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"] 
-
