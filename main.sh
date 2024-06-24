@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Function to check if a port is open
 check_port() {
     local port=$1
@@ -76,7 +78,7 @@ copy_files() {
 
         cp -r script.sh magento/
         if [ $? -eq 0 ]; then  # $? retrieves the exit status of the last executed command.
-            echo "script file copied successfully......"
+            echo "script file copied successfully............."
         else
             echo "script file copied failed......"
             exit 1
@@ -113,8 +115,53 @@ install_composer_packages() {
             echo "Composer installed failed......"
             exit 1
         fi
-
 }
+
+
+# To check password format
+check_password() {
+  local password="$1"
+  if [[ ${#password} -lt 8 ]]; then  ## less than 8
+    echo "Password must be at least 8 characters long."
+    return 1
+  fi
+  if ! [[ $password =~ [A-Z] ]]; then
+    echo "Password must contain at least one capital letter."
+    return 1
+  fi
+  if ! [[ $password =~ [a-z] ]]; then
+    echo "Password must contain at least one small letter."
+    return 1
+  fi
+  if ! [[ $password =~ [0-9] ]]; then
+    echo "Password must contain at least one number."
+    return 1
+  fi
+  if ! [[ $password =~ [^a-zA-Z0-9] ]]; then
+    echo "Password must contain at least one symbol."
+    return 1
+  fi
+  return 0
+}
+
+
+# To validate input length
+validate_input() {
+    local input=$1         # 1st argument
+    local min_length=$2    # 2nd argument
+    if [[ -z "$input" ]]; then
+        echo "Error: Input cannot be empty."
+        return 1
+    elif [[ ${#input} -lt $min_length ]]; then
+        echo "Error: Input must be at least $min_length characters long."
+        return 1
+    else
+        return 0
+    fi
+}
+
+
+
 
 # Install Magento
 install_magento() {
@@ -239,8 +286,9 @@ configure_varnish() {
 
 # Function to get Magento Admin URI
 get_admin_uri() {
-    echo "admin url successfully"
     docker exec -it -u www-data:www-data -w /var/www/magento magento bin/magento info:adminuri
+    echo "Above Magento Admin URL"
+    echo
 }
 
 
@@ -249,7 +297,7 @@ get_admin_uri() {
 
 
 
-#############################################  Port 80 and 8080 available  ###############################################
+###############################################################################  Port 80 and 8080 available  ###############################################
 
 read -p "Ensure the port 80 and 8080 must be available to run the complete package of application (y/n): " verify_port
 
@@ -271,53 +319,56 @@ if [ "$verify_port" == "y" ]; then
 
 else 
     echo "Port 80 and 8080 must be available to run this application."
+    exit 1
 fi
 
 echo
 
-####################################################  Docker and docker compose installed  ####################################
+############################################################################  Docker and docker compose installed  ####################################
 
 
 if [ $? -eq 0 ]; then
 
     read -p "Ensure the Docker and Docker-Compose must be installed to run the complete package of application (y/n): " cri_installed
 
-    # Check if Docker is installed
-    if check_docker_installed
-    then
-        check_docker_installed_status=$?
 
-        if check_docker_compose_installed
+    if [ "$cri_installed" == "y" ]; then
+        # Check if Docker is installed
+        if check_docker_installed
         then
-            check_docker_compose_installed_status=$?
-            # Check if the user is in the Docker group
-            if groups $USER | grep &>/dev/null "\bdocker\b"
+            check_docker_installed_status=$?
+
+            if check_docker_compose_installed
             then
-                echo "User is already in the Docker group."
+                check_docker_compose_installed_status=$?
+                # Check if the user is in the Docker group
+                if groups $USER | grep &>/dev/null "\bdocker\b"
+                then
+                    echo "User is already in the Docker group."
+                else
+                    echo "Please add User in the Docker group....."
+                    exit 1
+                fi
+                check_user_dockergroup_status=$?
+
             else
-                echo "Please add User in the Docker group....."
+                echo "Please first install Docker Compose"
                 exit 1
             fi
-            check_user_dockergroup_status=$?
 
+            if [ $check_docker_installed_status -eq 0 ] && [ $check_docker_compose_installed_status -eq 0 ] && [ $check_user_dockergroup_status -eq 0 ]  ; then
+                echo "docker, docker-compose and user configured with docker are available. Proceeding to the next step."
+            else
+                echo "Both docker and docker-compose must be available to run this application."
+            fi
         else
-            echo "Please first install Docker Compose"
+            echo "please first install Docker "
             exit 1
         fi
-
-        if [ $check_docker_installed_status -eq 0 ] && [ $check_docker_compose_installed_status -eq 0 ] && [ $check_user_dockergroup_status -eq 0 ]  ; then
-            echo "docker, docker-compose and user configured with docker are available. Proceeding to the next step."
-        else
-            echo "Both docker and docker-compose must be available to run this application."
-        fi
-
-
     else
-        echo "please first install Docker"
+        echo "please first install Docker and Docker Compose"
+        exit 1
     fi
-
-    # Further steps can be added here
-    echo "Proceeding with the Magento Installation..."
 
 else
     echo "Check ports 80 and 8080 failed......."
@@ -326,26 +377,27 @@ fi
 
 
 
-##############################################################  Magento install freshly with dependencies  ######################################
+############################################################################  Magento install freshly with dependencies  ######################################
 
 if [ $? -eq 0 ]; then
-
-    echo "Do you want to proceed with a fresh Magento installation or use an existing setup?"
+    echo
+    echo "Do you want to proceed with a fresh Magento installation?"
     echo "1) Fresh Magento installation"
-    #echo "2) Existing setup"
+    echo "2) None"
 
     # Read user's choice and '-p' option makes it read as a prompt
-    read -p "Enter your choice (1): " choice
+    read -p "Enter your choice (1 or 2): " choice
 
     if [[ "$choice" -eq 1 ]]; then
-
-        read -p "Current path for installation MAGENTO, MySql-data, Elasticsearch-data (y/n) : " installation_path
         
-        if [[ "$installation_path" == "yes" || "$installation_path" == "y" ]]; then
-        
+            echo "We proceed the current path for installation Magento"
+            echo "We proceed the current path for persistent data storage of mysql, varnish, elasticsearch"
+            echo "----------------------------------------------------------"
             current_path=$(pwd)
-            echo "current path for magento is: $current_path"
+            echo "Current path for Magento is: $current_path"
+            echo "----------------------------------------------------------"
             
+############################################################## Add data_persist_volume
 
             if [ $? -eq 0 ]; then
                 #creating volume for data persistent
@@ -355,17 +407,54 @@ if [ $? -eq 0 ]; then
                 exit 1
             fi
 
+############################################################## MYSQL Credentials intractive mode
 
             if [ $? -eq 0 ]; then
-                read -p "Continue with MYSQL CREDENTIALS (y/n) : " mysql_credentials
+                echo 
+                echo "Continue with MYSQL CREDENTIALS"
 
-                # Prompt the user for MySQL configuration
-                read -sp "Enter MySQL ROOT Password: " MYSQL_ROOT_PASSWORD
-                echo
-                read -p "Enter MySQL Database Name: " MYSQL_DATABASE
-                read -p "Enter MySQL Username: " MYSQL_USER
-                read -sp "Enter MySQL Password: " MYSQL_PASSWORD
-                echo
+
+                # MYSQL_ROOT_PASSWORD
+                while true; do
+                    echo "Password must be at least 8 characters long. In this format like.. Admin@123"
+                    read -sp "Enter the mysql_root_password: " MYSQL_ROOT_PASSWORD
+                    echo
+                    if check_password "$MYSQL_ROOT_PASSWORD"; then
+                        echo "Password accepted."
+                        break
+                    else
+                        echo "Please try again."
+                    fi
+                done
+                
+
+                # MySQL Database Name
+                while true; do
+                    echo "Database Name must be at least 5 characters long"
+                    read -p "Enter MySQL Database Name: " MYSQL_DATABASE
+                    validate_input "$MYSQL_DATABASE" 5 && break
+                done
+
+                # MySQL Username
+                while true; do
+                    echo "Username must be at least 5 characters long"
+                    read -p "Enter MySQL Username: " MYSQL_USER
+                    validate_input "$MYSQL_USER" 5 && break
+                done
+
+                # MYSQL_PASSWORD
+                while true; do
+                    echo "Password must be at least 8 characters long. In this format like.. Admin@123"
+                    read -sp "Enter the mysql_password: " MYSQL_PASSWORD
+                    echo
+                    if check_password "$MYSQL_PASSWORD"; then
+                        echo "Password accepted."
+                        break
+                    else
+                        echo "Please try again."
+                    fi
+                done
+
 
                 export MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
                 export MYSQL_DATABASE=$MYSQL_DATABASE
@@ -378,6 +467,8 @@ if [ $? -eq 0 ]; then
             fi
 
 
+############################################################## Copy virtual hosting, script (permission) and varnish configuration file
+
             if [ $? -eq 0 ]; then
                 # copy virtual hosting and script(permission and fpm start) files if they don't exist
                 copy_files
@@ -386,6 +477,8 @@ if [ $? -eq 0 ]; then
                 exit 1
             fi
 
+
+############################################################## Applications Container Deploying
 
             if [ $? -eq 0 ]; then
                 # containers up
@@ -398,15 +491,18 @@ if [ $? -eq 0 ]; then
 
 
 
-            if [ $? -eq 0 ]; then  # $? retrieves the exit status of the last executed command.
-                echo "Containers are deploying successfully......"
-            else
-                echo "Containers are deploying failed......"
-                exit 1
-            fi
-
+            # if [ $? -eq 0 ]; then  # $? retrieves the exit status of the last executed command.
+            #     echo "Containers are deploying successfully......"
+            # else
+            #     echo "Containers are deploying failed......"
+            #     exit 1
+            # fi
 
             sleep 30
+
+############################################################## Installing or Updating Composer package dependencies
+
+            #install_composer_packages
 
             if [ $? -eq 0 ]; then
                 # install or update packages using Composer
@@ -415,18 +511,82 @@ if [ $? -eq 0 ]; then
                 echo "Containers are deploying failed......"
                 exit 1
             fi
-            
+
+
+            # if install_composer_packages; then
+            #     echo "Composer install completed successfully."
+            #     exit 0
+            # else
+            #     echo "Composer install failed. Retrying..."
+
+            #     MAX_RETRIES=3
+            #     attempt=1
+
+            #     while [ $attempt -le $MAX_RETRIES ]; do
+            #         echo "Attempt $attempt of $MAX_RETRIES..."
+
+            #         # Wait for 2 seconds before retrying (adjust sleep time as needed)
+            #         sleep 2
+
+            #         # Run the composer install command again
+            #         if install_composer_packages; then
+            #             echo "Composer install completed successfully."
+            #             exit 0
+            #         else
+            #             echo "Composer install failed."
+            #             attempt=$((attempt + 1))
+            #         fi
+            #     done
+
+            #     echo "Exceeded maximum retries. Composer install still failed."
+            #     exit 1
+            # fi
+
+
+############################################################## Magento Admin Credentias interactive mode
+
 
             if [ $? -eq 0 ]; then
 
+                echo "---------------------------------------------"
                 echo "Enter the MAGENTO ADMIN configuration details"
 
                 # Prompt the MAGENTO admin's configuration
-                read -p "Enter the magento admin-firstname: " ADMIN_FIRSTNAME
-                read -p "Enter the magento admin-lastname: " ADMIN_LASTNAME
-                read -p "Enter the magento admin-email: " ADMIN_EMAIL
-                read -p "Enter the magento admin-user: " ADMIN_USER 
-                read -sp "Enter the magento admin-password: " ADMIN_PASSWORD
+                while true; do
+                    echo "admin-firstname must be at least 5 characters long"
+                    read -p "Enter the magento admin-firstname: " ADMIN_FIRSTNAME
+                    validate_input "$ADMIN_FIRSTNAME" 5 && break
+                done
+
+                while true; do
+                    echo "admin-lastname must be at least 5 characters long"
+                    read -p "Enter the magento admin-lastname: " ADMIN_LASTNAME
+                    validate_input "$ADMIN_LASTNAME" 5 && break
+                done
+
+                while true; do
+                    echo "admin-email must be at least 10 characters long"
+                    read -p "Enter the magento admin-email: " ADMIN_EMAIL
+                    validate_input "$ADMIN_EMAIL" 10 && break
+                done
+
+                while true; do
+                    echo "admin-user must be at least 5 characters long"
+                    read -p "Enter the magento admin-user: " ADMIN_USER
+                    validate_input "$ADMIN_USER" 5 && break
+                done
+
+                while true; do
+                    echo "Password must be at least 8 characters long. In this format like.. Admin@123"
+                    read -sp "Enter the Magento admin-password: " ADMIN_PASSWORD
+                    echo
+                    if check_password "$ADMIN_PASSWORD"; then
+                        echo "Password accepted."
+                        break
+                    else
+                        echo "Please try again."
+                    fi
+                done
                 echo
 
                 export ADMIN_FIRSTNAME=$ADMIN_FIRSTNAME
@@ -445,6 +605,9 @@ if [ $? -eq 0 ]; then
             fi
 
 
+############################################################## Redis Configure with magento
+
+
             if [ $? -eq 0 ]; then
                 # configure Redis
                 configure_redis
@@ -453,6 +616,7 @@ if [ $? -eq 0 ]; then
                 exit 1
             fi
 
+############################################################## Change ownership permission
 
             if [ $? -eq 0 ]; then
                 # Change ownership permission
@@ -462,6 +626,7 @@ if [ $? -eq 0 ]; then
                 exit 1
             fi
 
+############################################################## Configure Varnish with magento full_page_cache
 
             if [ $? -eq 0 ]; then
                 # Configure Varnish
@@ -471,6 +636,7 @@ if [ $? -eq 0 ]; then
                 exit 1
             fi
 
+############################################################## Get Admin URL
 
             if [ $? -eq 0 ]; then
                 # get Admin Url
@@ -480,12 +646,19 @@ if [ $? -eq 0 ]; then
                 exit 1
             fi
 
+##############################################################  Print phpmyadmin URL
+
+            if [ $? -eq 0 ]; then
+                echo "-------------------------------------"
+                echo "phpmyadmin URL: http://localhost:8080"
+            else
+                echo "get magento admin url failed......"
+                exit 1
+            fi
 
 
-        else
-            echo "provide the path"
-
-        fi
+    elif [[ "$choice" -eq 2 ]]; then
+        echo "Magento not Install....."
 
     else
         echo "Invalid choice. Please run the script again and choose 1 or 2."
