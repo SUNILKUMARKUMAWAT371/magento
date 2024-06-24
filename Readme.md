@@ -67,5 +67,5 @@ Magento Admin URL: http://localhost/admin-id
 phpMyAdmin URL: http://localhost:8080
 
 
-- **Example: admin-id 
+- **Example**: admin-id 
 Admin URI: /admin_v91x5o1
